@@ -2400,7 +2400,8 @@ async function visualGuard() {
                 drift.push(key);
             }
         }
-        if (background_settings && (background_settings.name !== GUARD_BG_NAME || background_settings.url !== GUARD_BG_URL)) {
+        /* v2.0.2：仅在"用户未设置任何背景"时才补默认守护背景；手动设置的背景永不接管 */
+        if (background_settings && !background_settings.url && !background_settings.name) {
             background_settings.name = GUARD_BG_NAME;
             background_settings.url = GUARD_BG_URL;
             background_settings.fitting = 'cover';
@@ -2408,10 +2409,12 @@ async function visualGuard() {
         }
         if (drift.length) {
             console.warn('[RPG-UI] 检测到界面设置被覆盖，正在恢复 RPG 视觉：', drift.join(', '));
-            try {
-                $('#bg1').css('background-image', GUARD_BG_URL);
-                $('#bg1').removeClass('cover contain stretch center').addClass('cover');
-            } catch (err2) { /* 忽略 */ }
+            if (drift.includes('background')) {
+                try {
+                    $('#bg1').css('background-image', GUARD_BG_URL);
+                    $('#bg1').removeClass('cover contain stretch center').addClass('cover');
+                } catch (err2) { /* 忽略 */ }
+            }
             try {
                 await saveSettings();
             } catch (err3) {
@@ -3726,7 +3729,7 @@ function renderSettings() {
                     <input type="checkbox" id="rpg_ui_lang"> 首选简体中文界面
                 </label>
                 <label class="checkbox_label" title="主题为「RPG 冒险者酒馆」时，若配色/背景/头像被其他标签页或扩展覆盖，自动恢复为 RPG 视觉">
-                    <input type="checkbox" id="rpg_ui_guard"> RPG 视觉守护（自动修复被覆盖的配色/背景/头像）
+                    <input type="checkbox" id="rpg_ui_guard"> RPG 视觉守护（自动修复被覆盖的配色/头像；v2.0.2 起不再接管背景）
                 </label>
                 <small>信息卡直接取自 AI 回复末尾的状态块（自动隐藏、不出现在对话里）——一次回复同时完成剧情与填卡，无需第二次请求。卡片头部：拖动｜✎ 修改信息（全卡编辑，改完💾保存）｜✨ 推演补全｜🗑 删除｜↺ 重置｜－/＋ 缩放。删除消息时卡片自动回退。</small>
                 <hr style="border-color:#3f5f4a;margin:10px 0;">
