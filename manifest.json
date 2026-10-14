@@ -1,0 +1,11 @@
+{
+    "display_name": "ST-RPG-UI · RPG人物信息卡",
+    "loading_order": 120,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "qinchuanzhang8-sketch",
+    "version": "2.0.0",
+    "homePage": "https://github.com/qinchuanzhang8-sketch/SillyTavern-RPG-UI"
+}
