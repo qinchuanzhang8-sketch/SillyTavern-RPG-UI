@@ -582,7 +582,8 @@
 }
 
 /* ══════════ 窄屏 / 无障碍 ══════════ */
-@media (max-width: 1100px) {
+/* v2.0.1：仅在手机级窄屏（<640px）隐藏卡片；普通笔记本/窗口化不再消失 */
+@media (max-width: 640px) {
     .rpg-info-card {
         display: none;
     }
