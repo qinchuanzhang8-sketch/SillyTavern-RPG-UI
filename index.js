@@ -201,8 +201,9 @@ const FIELD_ALIASES = {
     behavior: ['行为', '当前行为', 'behavior', 'action'],
     posture: ['当前姿态', '姿态', 'posture'],
     pregnant: ['怀孕状态', '是否怀孕', '怀孕', '妊娠', '孕', 'pregnancy', 'pregnant'],
-    ovulation: ['是否排卵', '排卵', 'ovulation'],
+    ovulation: ['排卵/受精', '排卵受精', '是否排卵', '排卵', 'ovulation'],
     pregChance: ['怀孕可能性', '怀孕概率', '怀孕几率', 'pregnancy chance', 'pregnancy probability'],
+    bioFather: ['生物学父亲', '生物父亲', '致孕者', 'biological father', 'bio father'],
     /* ── v1.8：性频率 → 性爱总次数（按对象累计，只增不减）＋ 最喜欢的阴茎 ── */
     sexFreq: ['性爱总次数', '性爱次数', '性交总次数', '性频率', '性行为次数', '性交次数', 'sex frequency', 'sex count'],
     favPenis: ['最喜欢的阴茎', '最喜欢的肉棒', '最爱的阴茎', 'favorite penis', 'preferred penis'],
@@ -505,7 +506,7 @@ function parseBlock(text) {
     /* 「怀孕状态：是（是否排卵：是，怀孕几率：40%）」内嵌字段拆解 */
     if (fields.pregnant) {
         if (!fields.ovulation) {
-            const ov = fields.pregnant.match(/是否排卵\s*[:：]\s*([^，,；;）)｜|]{1,8})/);
+            const ov = fields.pregnant.match(/(?:是否排卵|排卵\/受精)\s*[:：]\s*([^，,；;）)（(｜|\n]{1,20})/);
             if (ov && ov[1].trim()) {
                 fields.ovulation = ov[1].trim();
             }
@@ -514,6 +515,12 @@ function parseBlock(text) {
             const pc = fields.pregnant.match(/怀孕(?:可能性|概率|几率)\s*[:：]?\s*(\d{1,3})\s*%?/);
             if (pc) {
                 fields.pregChance = pc[1] + '%';
+            }
+        }
+        if (!fields.bioFather) {
+            const bf = fields.pregnant.match(/生物学父亲\s*[:：]\s*([^，,；;）)（(｜|\n]{1,24})/);
+            if (bf && bf[1].trim()) {
+                fields.bioFather = bf[1].trim();
             }
         }
     }
@@ -1159,7 +1166,7 @@ const CARD_TEMPLATE_V19 = `## 🕐 时间·场景
 💭 阴茎比较：<…>
 💭 性爱比较：<…>
 ## 🔥 生理状态
-🤰 怀孕状态：<是/否>（是否排卵：<是/否>；已排卵则改写"卵子是否受精：<是/否>"，受精后约6~12天着床→"怀孕状态"改"是"；怀孕几率：<0-100>%）
+🤰 怀孕状态：<是/否> | 排卵/受精：<是/否（受精要注明：卵子已受精）> | 生物学父亲：<未怀孕写"无"；受孕后写男方真名>
 🍑 阴道状况：<…>
 🌸 肛门状况：<…>
 🐻 乳房状况：<…>
@@ -1238,7 +1245,7 @@ const DEFAULT_NOTES = `【人物信息卡·字段填写说明】（每条都按�
 · 好感度↑：温柔对待、兑现承诺、礼物惊喜、共度重要时刻、危难相助、愧疚补偿；↓：失望受伤、爽约冷落、争吵、被揭穿谎言、羞辱或强迫。对另一位男人的好感↑：他的攻势与关怀、满足她的需求、攻心话术；↓：怠慢、玩腻、粗暴、控制欲过强。
 · 体力↑：休息（20~40）、睡眠（100）、进食饮水（30~80）、按摩放松；↓：熬夜、劳累工作、剧烈运动、性爱消耗（高潮次数越多降得越多）、生病、饥饿。
 · 性欲值↑：被撩拨、暧昧氛围、亲密接触、排卵期、长时间没有亲密（缓慢上浮）、观看情色内容；↓：高潮后大幅回落、冷水澡、身体疲惫、负面情绪、身体不适。
-· 怀孕状态（必须随剧情时间实时推进，严禁照抄上一楼）：整行随时反映当下——「是/否（是否排卵：…；已排卵→卵子是否受精：…；怀孕几率：…%）」。推进规则：①排卵期（含±3天窗口）被无保护内射→当次或其后的状态栏立即把"是否排卵：是"改写为"卵子是否受精：是"（深处内射、距排卵时间近→受精；体外/戴套/事后清洗→否），怀孕几率随之上调到30%以上；②受精后按天推进：受精卵约6~12天着床——每一次状态栏都要把怀孕几率逐日上调（约+5~8%/天），并在约6~12天后把"怀孕状态"从"否"改写为"是（已着床）"；③始终未受精（受精窗口＝排卵后约24小时过去仍无有效内射）→"卵子是否受精：否"保持到经期，经期到来→怀孕几率重置低位、"是否排卵"回到否；④未到排卵期：保持低位、经期结束后逐步回升；⑤已怀孕：写"是"、几率≈100%，并同步孕期表现（停经、晨吐、嗜睡等）。周期约28天、经期约5天。每次填写前先对比上一张卡的时间——剧情过了多少天，这里就必须推进多少天；"到了第二天仍是昨天的状态"直接算不合格，必须重写。
+· 怀孕状态（必须随剧情时间实时推进，严禁照抄上一楼）：格式＝怀孕状态 | 排卵/受精 | 生物学父亲。变化条件：①未排卵→"排卵/受精：否"；②进入排卵期（经期前约14天、±3天窗口）→"排卵/受精：已排卵（未受精）"，怀孕可能性随周期上调；③排卵期内（卵子存活约24小时内）被无保护内射→"排卵/受精：卵子已受精"，并当次起把"怀孕状态"改写为"是"（显示怀孕成功）、怀孕可能性跳到60%以上；④受精后孕期逐日推进（停经、晨吐、嗜睡等），怀孕可能性逐步升到≈100%；⑤始终未受精（受精窗口过去仍无有效内射）→保持"已排卵（未受精）"，经期到来→重置为"否"，怀孕可能性回低位，下个周期循环；⑥已怀孕："怀孕状态"保持"是"，直至分娩或终止。生物学父亲：未怀孕时写"无"；受精或怀孕后写使卵子受精的那次内射的男方真名（她不确定或多人都可能时写"不明（可能与：甲／乙）"）；一经确定不得随意更改；经期重置（未孕）时同步清回"无"。周期约28天、经期约5天。每次填写前先对比上一张卡的时间——剧情过了多少天就推进多少天，"到了第二天仍是昨天的状态"直接算不合格，必须重写。
 · 高潮值↑：抚摸、亲吻、口交、抽插、道具与情话等刺激的累积（敏感度越高涨得越快）；↓：高潮后清零；刺激中断、冷却、疼痛、分心或被打扰时回落。
 · NTR值↑：仅在重大剧情节点——第一次越界、反复隐瞒后尝到甜头、被其他角色攻心、重要时刻{{user}}缺席而在其他角色身边等，每次只加个位数；↓：只有真正修复关系（坦白＋{{user}}原谅＋长期远离对方）才缓慢回落，其余情况不降。
 · 淫荡值↑：被开发新玩法、被夸奖或围观获得快感、自慰的刺激、主动尝试后尝到甜头；↓：受伤、被羞辱贬低、社死或被严厉管束、长期压抑。
@@ -1716,9 +1723,22 @@ function updateCard() {
         }
     }
 
-    // 怀孕行（合并 排卵 / 几率）
-    const pregText = [fv('pregnant'), fv('ovulation') ? `排卵：${fv('ovulation')}` : null]
-        .filter(Boolean).join(' ｜ ');
+    /* v2.0.5：布局提前计算（怀孕行需按模板是否含独立「排卵/受精」「生物学父亲」行决定是否合并） */
+    const layoutSrc = (cfg.cardTemplate && String(cfg.cardTemplate).trim()) ? cfg.cardTemplate : DEFAULT_CARD_TEMPLATE;
+    const layout = buildLayoutFromTemplate(layoutSrc);
+    const layoutCanonSet = new Set();
+    for (const sec of layout) {
+        for (const row of sec.rows) {
+            if (row.canon) { layoutCanonSet.add(row.canon); }
+        }
+    }
+
+    // 怀孕行（模板含独立行时各自显示；旧模板自动合并排卵/受精与生物学父亲）
+    const pregText = [
+        fv('pregnant'),
+        (!layoutCanonSet.has('ovulation') && fv('ovulation')) ? `排卵/受精：${fv('ovulation')}` : null,
+        (!layoutCanonSet.has('bioFather') && fv('bioFather')) ? `生物学父亲：${fv('bioFather')}` : null,
+    ].filter(Boolean).join(' ｜ ');
 
     // 生理区（固定模板：未填充时显示占位）
     const physHTML = [
@@ -1749,8 +1769,7 @@ function updateCard() {
     const nowFull = fmtFull(new Date());
 
     /* ═══ v1.7：表格化布局（由「卡片模板」驱动；设置面板可自由编辑显示内容与条目） ═══ */
-    const layoutSrc = (cfg.cardTemplate && String(cfg.cardTemplate).trim()) ? cfg.cardTemplate : DEFAULT_CARD_TEMPLATE;
-    const layout = buildLayoutFromTemplate(layoutSrc);
+    /* v2.0.5：layoutSrc / layout / layoutCanonSet 已在本函数上方「怀孕行」处提前计算 */
     const coveredCustom = new Set();
     const seenSpecial = { rel: false, partsOutfit: false, partsBody: false, cg: false };
     const statByKey = Object.fromEntries(statFinal.map(s => [s.key, s]));
@@ -2583,7 +2602,7 @@ const QUIET_PROTOCOL = (name, userName) => `【状态栏】
 💋 与其他重要角色的关系：<对相关角色的感情>
 体力：<0-100>/100（±N） ｜ 性欲值：<0-100>/100（±N） ｜ 怀孕可能性：<0-100>% ｜ 高潮值：<0-100>/100（±N） ｜ 🔥 NTR值：<0-100>/100（±N） ｜ 💦 淫荡值：<0-100>/100（±N）
 🛏 性频率：与${userName} X次，与其他角色 Y次
-🤰 怀孕状态：<是/否>（是否排卵：<是/否>；已排卵则改写"卵子是否受精：<是/否>"，受精后约6~12天着床→"怀孕状态"改"是"；怀孕几率：<0-100>%）
+🤰 怀孕状态：<是/否> | 排卵/受精：<是/否（受精要注明：卵子已受精）> | 生物学父亲：<未怀孕写"无"；受孕后写男方真名>
 🍑 阴道状况：<当前状况与特征>
 🌸 肛门状况：<当前状况与特征>
 🐻 乳房状况：<当前状况与双乳特征>
@@ -2610,7 +2629,7 @@ const QUIET_PROTOCOL_BASE = (name, userName) => `【状态栏】
 🎈 心情：<当前情绪>
 体力：<0-100>/100（±N） ｜ 性欲值：<0-100>/100（±N） ｜ 怀孕可能性：<0-100>% ｜ 高潮值：<0-100>/100（±N） ｜ 🔥 NTR值：<0-100>/100（±N） ｜ 💦 淫荡值：<0-100>/100（±N）
 🛏 性频率：与${userName} X次，与其他角色 Y次
-🤰 怀孕状态：<是/否>（是否排卵：<是/否>；已排卵则改写"卵子是否受精：<是/否>"，受精后约6~12天着床→"怀孕状态"改"是"；怀孕几率：<0-100>%）
+🤰 怀孕状态：<是/否> | 排卵/受精：<是/否（受精要注明：卵子已受精）> | 生物学父亲：<未怀孕写"无"；受孕后写男方真名>
 🍑 阴道状况：<当前状况与特征>
 🌸 肛门状况：<当前状况与特征>
 🐻 乳房状况：<当前状况与双乳特征>
@@ -2648,7 +2667,7 @@ const DEFAULT_TEMPLATE_TEXT = `【状态栏】
 体力：<0-100>/100（±N） ｜ 性欲值：<0-100>/100（±N） ｜ 怀孕可能性：<0-100>% ｜ 高潮值：<0-100>/100（±N） ｜ 🔥 NTR值：<0-100>/100（±N） ｜ 💦 淫荡值：<0-100>/100（±N）
 🛏 性爱总次数：共<N>次（与<user> <n>次｜与<其他对象真名> <n>次｜…，按对象分别累计，只增不减）
 🍆 最喜欢的阴茎：长<XX>cm·直径<XX>cm（注明是谁的）
-🤰 怀孕状态：<是/否>（是否排卵：<是/否>；已排卵则改写"卵子是否受精：<是/否>"，受精后约6~12天着床→"怀孕状态"改"是"；怀孕几率：<0-100>%）
+🤰 怀孕状态：<是/否> | 排卵/受精：<是/否（受精要注明：卵子已受精）> | 生物学父亲：<未怀孕写"无"；受孕后写男方真名>
 🍑 阴道状况：<当前状况与特征>
 🌸 肛门状况：<当前状况与特征>
 🐻 乳房状况：<当前状况与双乳特征>
@@ -2706,7 +2725,7 @@ function applyProtocolPrompt() {
             + '⑤ 填写前先在心里对账：本次剧情里【谁和谁、做了什么、花了或赚了什么、身体发生了什么变化】——只更新与这些事实相关的字段，其余照抄上一张卡。\n'
             + '⑥ 「💭 阴茎比较」与「💭 性爱比较」必须每楼填写（哪怕只有一句话）：这是她此刻最真实的内心活动——对男人们（含玩家）尺寸/持久/技巧的私下比较、对性爱体验的惦记与对比。不得省略、不得留空、不得用"无"敷衍；她可以在外表上掩饰、否认，但内心字段要诚实。\n'
             + '⑦ 【本次/上次】结算（重要）：性爱结束、她回到日常后，必须把【本次】四格（对象／姿势／插入深度／评价）平移进【上次】对应项，并把【本次】四格全部改写为"无"；没有新的性爱之前【本次】一直保持"无"，严禁残留上一场信息。\n'
-            + '⑧ 怀孕状态实时推进：排卵期内射→"卵子是否受精：是"；之后逐日推进（受精卵约6~12天着床→"怀孕状态"改"是"，怀孕几率逐日上调）；始终未受精则经期时重置。每次填写前对比上一张卡的时间——过了几天就推进几天，严禁照抄上一楼。\n';
+            + '⑧ 怀孕状态实时推进（格式：怀孕状态 | 排卵/受精 | 生物学父亲）：排卵期→注明"已排卵（未受精）"；排卵期内射→"卵子已受精"，且"怀孕状态"立即改写为"是"（怀孕成功）；始终未受精→经期时重置为"否"；"生物学父亲"：未怀孕写"无"，受精/怀孕后写致孕男方真名（不确定写"不明（可能与：…）"），确定后不得更改。每次填写前对比上一张卡的时间——过了几天就推进几天，严禁照抄上一楼。\n';
         const notes = (cfg.fieldNotes && String(cfg.fieldNotes).trim())
             ? ('\n《字段填写说明》（在设置面板可编辑；每条都按此解释填写）：\n' + String(cfg.fieldNotes).trim())
             : ((typeof DEFAULT_NOTES === 'string') ? ('\n《字段填写说明》：\n' + DEFAULT_NOTES) : '');
@@ -2800,6 +2819,12 @@ function buildPrevCardText(cur, ctx, name) {
     const numOf = (v) => { const m = String(v === null || v === undefined ? '' : v).match(/(\d{1,3})/); return m ? parseInt(m[1], 10) : null; };
     const src = (cfg.cardTemplate && String(cfg.cardTemplate).trim()) ? cfg.cardTemplate : DEFAULT_CARD_TEMPLATE;
     const layout = buildLayoutFromTemplate(src);
+    const layoutCanonSet = new Set();
+    for (const sec of layout) {
+        for (const row of sec.rows) {
+            if (row.canon) { layoutCanonSet.add(row.canon); }
+        }
+    }
     const latestIdx = Array.isArray(ctx.chat) ? ctx.chat.length - 1 : 0;
     const isPlayerRel = (n) => n === '玩家' || (playerName && n === playerName);
     const relFiltered = Object.entries(cur.relations || {})
@@ -2870,7 +2895,11 @@ function buildPrevCardText(cur, ctx, name) {
                 const klPrev = (s) => String(s || '').replace(/^[^一-龥A-Za-z0-9]+/, '').trim();
                 let val = row.canon ? fv(row.canon) : ((cur.custom || {})[row.label] !== undefined ? (cur.custom || {})[row.label] : ((cur.custom || {})[klPrev(row.label)] !== undefined ? (cur.custom || {})[klPrev(row.label)] : (row.label === '人物' ? forName : null)));
                 if (row.canon === 'pregnant') {
-                    val = [fv('pregnant'), fv('ovulation') ? ('排卵：' + clean(fv('ovulation'))) : null].filter(Boolean).join(' ｜ ');
+                    val = [
+                        fv('pregnant'),
+                        (!layoutCanonSet.has('ovulation') && fv('ovulation')) ? ('排卵/受精：' + clean(fv('ovulation'))) : null,
+                        (!layoutCanonSet.has('bioFather') && fv('bioFather')) ? ('生物学父亲：' + clean(fv('bioFather'))) : null,
+                    ].filter(Boolean).join(' ｜ ');
                 }
                 if (row.canon === 'time' && val) {
                     val = safeTime(val);
@@ -3091,7 +3120,7 @@ function migrateCardTemplateChgMark() {
             }
         }
         const n = String(cfg.fieldNotes || '');
-        if (n.trim() && !n.includes('随剧情时间实时推进') && cfg.notesUser !== CUSTOM_EPOCH) {
+        if (n.trim() && !n.includes('生物学父亲') && cfg.notesUser !== CUSTOM_EPOCH) {
             cfg.fieldNotes = DEFAULT_NOTES;
             changed = true;
         }
@@ -3110,9 +3139,13 @@ function migrateCardTemplateV19j() {
         if (t.trim() && t.includes('🕐 时间·场景') && cfg.tplUser !== CUSTOM_EPOCH) {
             let nt = t;
             const oldPreg = '🤰 怀孕状态：<是/否>（是否排卵：<是/否>，怀孕几率：<0-100>%）';
-            const newPreg = '🤰 怀孕状态：<是/否>（是否排卵：<是/否>；已排卵则改写"卵子是否受精：<是/否>"，受精后约6~12天着床→"怀孕状态"改"是"；怀孕几率：<0-100>%）';
+            const oldPreg2 = '🤰 怀孕状态：<是/否>（是否排卵：<是/否>；已排卵则改写"卵子是否受精：<是/否>"，受精后约6~12天着床→"怀孕状态"改"是"；怀孕几率：<0-100>%）';
+            const newPreg = '🤰 怀孕状态：<是/否> | 排卵/受精：<是/否（受精要注明：卵子已受精）> | 生物学父亲：<未怀孕写"无"；受孕后写男方真名>';
             if (nt.includes(oldPreg) && !nt.includes('卵子是否受精')) {
                 nt = nt.replace(oldPreg, newPreg);
+            }
+            if (nt.includes(oldPreg2)) {
+                nt = nt.replace(oldPreg2, newPreg);
             }
             const oldSemen = '🧪 精液量：<…>';
             const newSemen = '🧪 精液量：<按毫升计——胃部（口交射入）Xml ｜ 阴道内（含子宫）Xml ｜ 肛门内 Xml ｜ 外部（体表/衣物等）Xml；没有的写0ml>';
@@ -3128,7 +3161,7 @@ function migrateCardTemplateV19j() {
             }
         }
         const n = String(cfg.fieldNotes || '');
-        if (n.trim() && !n.includes('卵子是否受精') && cfg.notesUser !== CUSTOM_EPOCH) {
+        if (n.trim() && !n.includes('生物学父亲') && cfg.notesUser !== CUSTOM_EPOCH) {
             cfg.fieldNotes = DEFAULT_NOTES;
             changed = true;
         }
@@ -3485,7 +3518,11 @@ async function runQuietStatus() {
         `主视角角色：${forName}`,
         prevCs.fields?.time ? `时间：${prevCs.fields.time}` : null,
         prevCs.fields?.place ? `地点：${prevCs.fields.place}` : null,
-        prevCs.fields?.pregnant ? `怀孕状态：${prevCs.fields.pregnant}` : null,
+        prevCs.fields?.pregnant ? `怀孕状态：${[
+            prevCs.fields.pregnant,
+            prevCs.fields.ovulation ? `排卵/受精：${prevCs.fields.ovulation}` : null,
+            prevCs.fields.bioFather ? `生物学父亲：${prevCs.fields.bioFather}` : null,
+        ].filter(Boolean).join(' | ')}` : null,
         prevCs.fields?.desire ? `性欲值：${prevCs.fields.desire}` : null,
         prevCs.fields?.sexFreq ? `性爱总次数：${prevCs.fields.sexFreq}` : null,
         prevCs.fields?.favPenis ? `最喜欢的阴茎：${prevCs.fields.favPenis}` : null,
