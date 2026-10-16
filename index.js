@@ -3091,7 +3091,7 @@ function migrateCardTemplateChgMark() {
             }
         }
         const n = String(cfg.fieldNotes || '');
-        if (n.trim() && !n.includes('单次变化由你自行判断') && cfg.notesUser !== CUSTOM_EPOCH) {
+        if (n.trim() && !n.includes('随剧情时间实时推进') && cfg.notesUser !== CUSTOM_EPOCH) {
             cfg.fieldNotes = DEFAULT_NOTES;
             changed = true;
         }
