@@ -3120,7 +3120,8 @@ function migrateCardTemplateChgMark() {
             }
         }
         const n = String(cfg.fieldNotes || '');
-        if (n.trim() && !n.includes('生物学父亲') && cfg.notesUser !== CUSTOM_EPOCH) {
+        if (n.trim() && !n.includes('生物学父亲') && (cfg.notesUser !== CUSTOM_EPOCH || n.includes('怀孕可能性：随生理周期波动'))) {
+            /* v2.0.6：旧代出厂说明（带指纹）即使被冻结也强制升级到最新版——多页面回写后仍会自愈收敛 */
             cfg.fieldNotes = DEFAULT_NOTES;
             changed = true;
         }
@@ -3161,7 +3162,8 @@ function migrateCardTemplateV19j() {
             }
         }
         const n = String(cfg.fieldNotes || '');
-        if (n.trim() && !n.includes('生物学父亲') && cfg.notesUser !== CUSTOM_EPOCH) {
+        if (n.trim() && !n.includes('生物学父亲') && (cfg.notesUser !== CUSTOM_EPOCH || n.includes('怀孕可能性：随生理周期波动'))) {
+            /* v2.0.6：旧代出厂说明（带指纹）即使被冻结也强制升级到最新版——多页面回写后仍会自愈收敛 */
             cfg.fieldNotes = DEFAULT_NOTES;
             changed = true;
         }
