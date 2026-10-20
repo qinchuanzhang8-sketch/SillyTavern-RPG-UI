@@ -416,8 +416,38 @@ function parseBlock(text) {
     let name = null;
     const parts = extractParts(rawBlock);
 
-    const lines = lineBlock.split(/\r?\n/);
-    for (const line of lines) {
+    const klines = lineBlock.split(/\r?\n/);
+    /* v2.0.17：性癖区块（标题行 + 编号逐条 1. 2. 3.）先离线采集；其余行走常规解析 */
+    const workLines = [];
+    for (let i = 0; i < klines.length; i++) {
+        const s = klines[i].trim();
+        const isLike = /^[『\[•*\-\s]*(?:🎯\s*)?(?:性癖喜欢|已开发性癖)\s*(?:[:：].*|$)/.test(s);
+        const isDis = /^[『\[•*\-\s]*🚫\s*性癖不喜欢\s*(?:[:：].*|$)/.test(s);
+        if (!isLike && !isDis) {
+            workLines.push(klines[i]);
+            continue;
+        }
+        const canon2 = isDis ? 'kinksBad' : 'kinks';
+        let inline = /[:：]/.test(s) ? s.replace(/^[^:：]*[:：]\s*/, '') : '';
+        inline = inline.replace(/[』\]】]\s*$/, '').trim();
+        const segs = [];
+        if (inline) {
+            segs.push(inline);
+        }
+        let j = i + 1;
+        while (j < klines.length && /^\d{1,2}\s*[.、)）]\s*\S/.test(klines[j].trim())) {
+            segs.push(klines[j].trim().replace(/[』\]】]\s*$/, ''));
+            j++;
+        }
+        if (segs.length) {
+            const v2 = segs.join('\n');
+            fields[canon2] = fields[canon2] ? (fields[canon2] + '\n' + v2) : v2;
+        } else if (!fields[canon2]) {
+            fields[canon2] = '';
+        }
+        i = j - 1;
+    }
+    for (const line of workLines) {
         const mm = line.match(/^\s*[『\[\-•*\s]*([^:：]{1,28}?)\s*[:：]\s*(.+?)\s*[』\]】]?\s*$/);
         if (!mm) {
             continue;
@@ -1175,8 +1205,14 @@ const CARD_TEMPLATE_V19 = `## 🕐 时间·场景
 🌸 肛门状况：<…>
 🐻 乳房状况：<…>
 🧪 精液量：<按毫升计——胃部（口交射入）Xml ｜ 阴道内（含子宫）Xml ｜ 肛门内 Xml ｜ 外部（体表/衣物等）Xml；没有的写0ml>
-🎯 性癖喜欢：<…>
-🚫 性癖不喜欢：<…>
+🎯 性癖喜欢：
+1.<…>
+2.<…>
+3.<…>
+🚫 性癖不喜欢：
+1.<…>
+2.<…>
+3.<…>
 👃 当前体味：<…>
 💊 药物状态：<…>
 ## 📷 视角
@@ -1197,7 +1233,7 @@ const DEFAULT_NOTES = `【人物信息卡·字段填写说明】（按此填写�
 · 体力、性欲值、高潮值、NTR值、淫荡值、敏感度：只写数值与（±N）（括号内只填数字、不写原因——原因写进当前行为/心情等文字字段）；档位表现见下方【分级参考】。
 · 怀孕状态：格式＝怀孕状态 | 排卵/受精 | 生物学父亲；必须随剧情时间实时推进、严禁照抄上一楼。未排卵→"否"；进入排卵窗口（经期前约14天、±3天）→"已排卵（未受精）"，怀孕可能性上调；窗口内（卵子存活约24小时）被无保护内射→"卵子已受精"，当次起"怀孕状态"改写为"是"、可能性跳到60%以上；受精后孕期逐日推进（停经/晨吐/嗜睡），可能性逐步上升到≈100%；始终未受精→保持"未受精"，经期到来重置"否"并回低位，下个周期循环；已怀孕→保持"是"至分娩或终止。生物学父亲：未孕写"无"；受孕后写使卵子受精的那次内射的男方真名（不确定或多人都可能时写"不明（可能与：甲／乙）"），一经确定不得随意更改，经期重置（未孕）时清回"无"。周期约28天、经期约5天。每次填写前先对比上一张卡的时间——过了几天就推进几天，"第二天还是昨天状态"直接算不合格。
 · 生理状态：阴道/肛门写当下状态（湿润、收缩、松紧、颜色、精液残留、使用痕迹；没开发过写"未开发"）；乳房写罩杯与手感、乳尖状态与吻痕指痕；精液量按毫升分四处——胃部（口交射入）｜阴道内（含子宫）｜肛门内｜外部，没有的写0ml（淋浴清洗或时间流逝后相应清零、再次射入累加）。
-· 性癖（喜欢/不喜欢·分两行填写）：性癖＝个人对性行为方式、性刺激、性对象的偏好，也称"性偏好""性癖好"——**「🎯 性癖喜欢」行写她喜欢的、「🚫 性癖不喜欢」行写她讨厌或抗拒的：两行分开、各写各的，严禁挤在一行或互相串写**。**以下只是示例（仅供对照参考，切勿照抄、切勿局限——请按剧情自由填写、扩充与查缺补漏）**：常见类型包括但不限于：暴露癖（在陌生人前暴露生殖器）、秘密暴露癖（在外秘密暴露裸体）、窥阴癖（偷看他人隐私）、恋物癖（依赖物品获得兴奋）、施虐/受虐癖（极端疼痛或控制）、恋童癖；也包括偏爱哪类性姿势的性癖（后入/骑乘/站立抵墙/口交/乳交……）、哪些性刺激点会让她兴奋的性癖（阴蒂/乳尖/后庭/被顶撞深处/耳后脖颈……）等，由你自由想象与描写。**铁律：①任何角色（哪怕还是处女）都对性爱过程与性癖有过幻想——她必有自己喜欢的性癖、也有讨厌的性癖（两行至少各一项）；**「🎯 性癖喜欢」「🚫 性癖不喜欢」两行都严禁空白或"尚无"**；②**性癖每轮性爱结束后都要重新评估并改写：结合这一场她真实的反应（新开发/加深/暴露厌恶），把「🎯 性癖喜欢」「🚫 性癖不喜欢」两行分别重写——一场性爱可能开发出新喜好、加深旧喜好或暴露新的厌恶，写出的必须是对她此刻状态最合理的性癖，绝不允许原样照抄上一场，且要与她当前淫荡值、敏感度和经历相称；第一次经历某个性癖时必须在正文写清她的真实感受**；③态度可随经历缓慢演变、不可一夜反转——**尤其是性癖迁徙：不喜欢的性癖若被强制开发、并在过程中真实到达高潮、尝到快感，可以逐步从「🚫 性癖不喜欢」行清除、写进「🎯 性癖喜欢」行；原本喜欢的性癖若持续伴随痛苦或伤害，也可移入不喜欢的行（每次迁徙都必须在正文写清她的心理转折，只可渐进、绝不可一夜反转）**；④「超级喜欢」：敏感度与高潮值涨速约2~3倍、更快到达高潮且能连续高潮、身体更诚实、**无法拒绝**（嘴上不要身体背叛或半推半就），正文给足细节；「不喜欢」：明确抵触（拒绝/躲闪/提条件/事后生气）、身体干涩紧绷、**各项性爱数值涨速不到常态一半**，强行使用掉好感与心情、事后留怨，只有长期调教、淫荡值很高或特定对象时才可能缓慢转变（写清过程）。（本世界所有角色均为成年人。）**
+· 性癖（喜欢/不喜欢·标题行下按编号逐条）：性癖＝个人对性行为方式、性刺激、性对象的偏好，也称"性偏好""性癖好"——**「🎯 性癖喜欢」「🚫 性癖不喜欢」各是一个区块：标题行下用编号逐条列出（1. 2. 3. …每行一条、条数不限，可随经历增删），严禁挤在标题同一行、严禁互相串写**（例：「1.被亲吻、吮吸乳尖；」「2.被后入顶到前壁深处；」）。**以下只是示例（仅供对照参考，切勿照抄、切勿局限——请按剧情自由填写、扩充与查缺补漏）**：常见类型包括但不限于：暴露癖（在陌生人前暴露生殖器）、秘密暴露癖（在外秘密暴露裸体）、窥阴癖（偷看他人隐私）、恋物癖（依赖物品获得兴奋）、施虐/受虐癖（极端疼痛或控制）、恋童癖；也包括偏爱哪类性姿势的性癖（后入/骑乘/站立抵墙/口交/乳交……）、哪些性刺激点会让她兴奋的性癖（阴蒂/乳尖/后庭/被顶撞深处/耳后脖颈……）等，由你自由想象与描写。**铁律：①任何角色（哪怕还是处女）都对性爱过程与性癖有过幻想——她必有自己喜欢的性癖、也有讨厌的性癖（每区块至少一条）；**「🎯 性癖喜欢」「🚫 性癖不喜欢」两个区块都严禁空白或"尚无"**；②**性癖每轮性爱结束后都要重新评估并改写：结合这一场她真实的反应（新开发/加深/暴露厌恶），把「🎯 性癖喜欢」「🚫 性癖不喜欢」两个区块按编号逐条重写——一场性爱可能开发出新喜好、加深旧喜好或暴露新的厌恶，写出的必须是对她此刻状态最合理的性癖，绝不允许原样照抄上一场，且要与她当前淫荡值、敏感度和经历相称；第一次经历某个性癖时必须在正文写清她的真实感受**；③态度可随经历缓慢演变、不可一夜反转——**尤其是性癖迁徙：不喜欢的性癖若被强制开发、并在过程中真实到达高潮、尝到快感，可以逐步从「🚫 性癖不喜欢」区块清除、作为新条目写进「🎯 性癖喜欢」区块（编号重排连续）；原本喜欢的性癖若持续伴随痛苦或伤害，也可移入不喜欢的区块（每次迁徙都必须在正文写清她的心理转折，只可渐进、绝不可一夜反转）**；④「超级喜欢」：敏感度与高潮值涨速约2~3倍、更快到达高潮且能连续高潮、身体更诚实、**无法拒绝**（嘴上不要身体背叛或半推半就），正文给足细节；「不喜欢」：明确抵触（拒绝/躲闪/提条件/事后生气）、身体干涩紧绷、**各项性爱数值涨速不到常态一半**，强行使用掉好感与心情、事后留怨，只有长期调教、淫荡值很高或特定对象时才可能缓慢转变（写清过程）。（本世界所有角色均为成年人。）**
 · 体味/药物/道具/妆容：体味写香水、汗味、情欲气息、有没有混进别人的味道；药物写避孕药/酒精/催情类等，没有写"无"；道具只写她此刻随身携带、双手触手可及的东西（用掉、丢失、放别处的一律不写并从此行移除，摘下仍在手边的注明在哪）；妆容写完整妆/半妆/素颜、眼妆花没花、口红糊没糊、汗泪痕迹。
 · 好感度与关系：她心里的真实倾向。温柔对待、兑现承诺、礼物惊喜、共度重要时刻、危难相助、愧疚补偿会上升；失望受伤、爽约冷落、争吵、被揭穿、羞辱或强迫会下降；**性爱中的满足与高潮带来的快乐同样会使好感上涨——这是铁定的上涨项：她越快乐涨得越多，绝不允许"她很快乐却好感不涨"**；涨或降、涨多少由你根据剧情自行判断（变化量同样写（±N）、括号内只填数字）。**必须始终保留一位「当前与她最亲近／纠缠最深的另一位男人」的好感与关系**——写他的真名（不要写"另一位男人"这几个字）；人选随剧情更换：谁最近与她接触最多、影响最深就写谁，旧的退场、新的补上，哪怕这一楼没出场也先保留到剧情重心真正换人；**他的好感要与「对玩家的好感」直接对比**（她更黏谁、更怕谁、为谁的礼物心软、对玩家演的又是什么，可带上与玩家身材/性能力的对比）。若她最近还在与别的NPC接触、见面或联络，为每个这样的NPC各补一行好感与关系（都带（±N））；没有就不写，不要编造。**显示规则：卡片常驻玩家与一位最重要的NTR角色；其他角色仅在最近一楼仍被更新时短暂显示，离开或不再重要会自动隐藏——不要为保住显示而机械刷新。****关系名称必须与好感一致**：恋人/女友关系若好感掉到「面熟」以下，必须发生冷战、争吵、拒绝亲密甚至分手等低好感事件，不得只演表面亲密。
 · 当前姿态/当前行为：此刻的身体姿态与位置（坐着/趴着/被谁抱着、手和腿放在哪里）与正在做的具体动作；数值涨跌的原因与表现尽量在这里和其它文字字段（心情/📷视角/正文）里自然写出来（如性欲上涨→她夹腿、腿间发潮、忍不住看你）。
@@ -1258,6 +1294,7 @@ function layoutRowType(label, canon) {
 function buildLayoutFromTemplate(text) {
     const out = [];
     let cur = null;
+    let lastCanon = null;
     const src = String(text || '')
         .replace(/本次性行为\s*[:：]\s*姿\s*势\s*[:：]?/g, '本次姿势：')
         .replace(/上次性行为\s*[:：]\s*姿\s*势\s*[:：]?/g, '上次姿势：');
@@ -1270,19 +1307,26 @@ function buildLayoutFromTemplate(text) {
         if (mh) {
             cur = { title: mh[1].trim(), rows: [] };
             out.push(cur);
+            lastCanon = null;
             continue;
         }
         if (!cur) {
             cur = { title: '', rows: [] };
             out.push(cur);
         }
+        /* v2.0.17：性癖区块的编号条目行属于上一行，不单独成行 */
+        if (/^\d{1,2}\s*[.、)）]\s*\S/.test(line) && (lastCanon === 'kinks' || lastCanon === 'kinksBad')) {
+            continue;
+        }
         for (const seg of line.split(/[｜|]/).map(s => s.trim()).filter(Boolean)) {
-            const kv = seg.match(/^([^:：]{1,30})[:：]\s*(.+)$/);
+            /* v2.0.17：允许空值标题行（性癖喜欢/不喜欢 标题行下按编号逐条） */
+            const kv = seg.match(/^([^:：]{1,30})[:：]\s*(.*)$/);
             if (!kv) {
                 continue;
             }
             const label = kv[1].trim();
             const canon = findCanonical(label);
+            if (canon) { lastCanon = canon; }
             cur.rows.push({ label, canon, type: layoutRowType(label, canon) });
         }
     }
@@ -1454,7 +1498,12 @@ function updateCard() {
         /* 行内编辑保存 */
         $card.on('focusout', '[contenteditable="true"]', (e) => {
             const $el = $(e.currentTarget);
-            let text = $el.text().replace(/[\r\n]+/g, ' ').trim();
+            const _df = $el.attr('data-f');
+            const _keepNL = _df === 'kinks' || _df === 'kinksBad';
+            let text = (_keepNL && $el[0] && typeof $el[0].innerText === 'string' ? $el[0].innerText : $el.text()).replace(/\r/g, '');
+            text = _keepNL
+                ? text.split('\n').map(s => s.trim()).filter(Boolean).join('\n')
+                : text.replace(/[\r\n]+/g, ' ').trim();
             const st = getCardStore();
             const cs = st?.chars?.[st.active];
             if (!cs) {
@@ -1793,11 +1842,13 @@ function updateCard() {
                 : `<span class="rpg-ic-del" data-c="${esc(key)}" title="删除该条目">×</span>`)
             : '';
         const shown = has ? String(val) : '—';
+        /* v2.0.17：多行值（如性癖编号条目）按行换行显示 */
+        const shownHTML = esc(shown).replace(/\n/g, '<br>');
         const cleanGrp = klKey(label);
         const grp = /^上次/.test(cleanGrp) ? 'prev' : (/^本次/.test(cleanGrp) ? 'cur' : '');
         return {
             k: label,
-            inner: `<span class="rpg-ic-val${has ? '' : ' rpg-ic-empty'}"${attrs}>${esc(shown)}</span>${del}`,
+            inner: `<span class="rpg-ic-val${has ? '' : ' rpg-ic-empty'}"${attrs}>${shownHTML}</span>${del}`,
             len: has ? shown.length : 0,
             stat: false,
             empty: !has,
@@ -2575,8 +2626,14 @@ const QUIET_PROTOCOL = (name, userName) => `【状态栏】
 🐻 乳房状况：<当前状况与双乳特征>
 👌 敏感度：<0-100>/100（±N）
 🧪 精液量：<胃部（口交射入）Xml ｜ 阴道内（含子宫）Xml ｜ 肛门内 Xml ｜ 外部 Xml（毫升）>
-🎯 性癖喜欢：<…>
-🚫 性癖不喜欢：<…>
+🎯 性癖喜欢：
+1.<…>
+2.<…>
+3.<…>
+🚫 性癖不喜欢：
+1.<…>
+2.<…>
+3.<…>
 👃 当前体味：<…>
 🙀 情绪：<情绪与心理活动>
 💊 药物状态：<…，无则写"无">
@@ -2605,8 +2662,14 @@ const QUIET_PROTOCOL_BASE = (name, userName) => `【状态栏】
 🐻 乳房状况：<当前状况与双乳特征>
 👌 敏感度：<0-100>/100（±N）
 🧪 精液量：<胃部（口交射入）Xml ｜ 阴道内（含子宫）Xml ｜ 肛门内 Xml ｜ 外部 Xml（毫升）>
-🎯 性癖喜欢：<…>
-🚫 性癖不喜欢：<…>
+🎯 性癖喜欢：
+1.<…>
+2.<…>
+3.<…>
+🚫 性癖不喜欢：
+1.<…>
+2.<…>
+3.<…>
 👃 当前体味：<…>
 🙀 情绪：<情绪与心理活动>
 💊 药物状态：<…，无则写"无">
@@ -2646,8 +2709,14 @@ const DEFAULT_TEMPLATE_TEXT = `【状态栏】
 🐻 乳房状况：<当前状况与双乳特征>
 👌 敏感度：<0-100>/100（±N）
 🧪 精液量：<胃部（口交射入）Xml ｜ 阴道内（含子宫）Xml ｜ 肛门内 Xml ｜ 外部 Xml（毫升）>
-🎯 性癖喜欢：<…>
-🚫 性癖不喜欢：<…>
+🎯 性癖喜欢：
+1.<…>
+2.<…>
+3.<…>
+🚫 性癖不喜欢：
+1.<…>
+2.<…>
+3.<…>
 👃 当前体味：<…>
 🙀 情绪：<情绪与心理活动>
 💊 药物状态：<…，无则写"无">
@@ -3147,12 +3216,12 @@ function migrateCardTemplateV19j() {
             {
                 const _oldXh = '🎯 已开发性癖：<喜欢：<…> ｜ 不喜欢：<…>——只写已开发/亲身体验过的；没有写"尚无">';
                 if (nt.includes(_oldXh)) {
-                    nt = nt.replace(_oldXh, '🎯 性癖喜欢：<…>\n🚫 性癖不喜欢：<…>');
+                    nt = nt.replace(_oldXh, '🎯 性癖喜欢：\n1.<…>\n2.<…>\n3.<…>\n🚫 性癖不喜欢：\n1.<…>\n2.<…>\n3.<…>');
                 }
             }
             /* v2.0.8：已开发性癖行（精液量下方）；v2.0.10：同时检查新旧两种行名，防止误插重复行 */
             if (!nt.includes('🎯 已开发性癖') && !nt.includes('🎯 性癖喜欢')) {
-                const _xh = '🎯 性癖喜欢：<…>\n🚫 性癖不喜欢：<…>';
+                const _xh = '🎯 性癖喜欢：\n1.<…>\n2.<…>\n3.<…>\n🚫 性癖不喜欢：\n1.<…>\n2.<…>\n3.<…>';
                 if (nt.includes('👃 当前体味：')) {
                     nt = nt.replace('👃 当前体味：', _xh + '\n👃 当前体味：');
                 }
@@ -3199,43 +3268,53 @@ function migrateCardTemplateV19k() {
 function migrateKinkAndNotesV2010() {
     try {
         let changed = false;
-        /* ① 卡片模板：性癖喜欢/不喜欢 拆分为两行；折叠历史重复行 */
+        /* ① 卡片模板：性癖喜欢/不喜欢 → 标题行+编号逐条区块；折叠历史重复行 */
         const t = String(cfg.cardTemplate || '');
         if (t.trim()) {
-            const SL = '🎯 性癖喜欢：<…>';
-            const SD = '🚫 性癖不喜欢：<…>';
-            const isKinkLine = (s) => /^🎯\s*(已开发性癖|性癖喜欢)/.test(s) || /^🚫\s*性癖不喜欢/.test(s);
-            const isFactoryKink = (s) =>
-                s === SL || s === SD
+            const SL = '🎯 性癖喜欢：\n1.<…>\n2.<…>\n3.<…>';
+            const SD = '🚫 性癖不喜欢：\n1.<…>\n2.<…>\n3.<…>';
+            const isLikeHdr = (s) => /^🎯\s*(已开发性癖|性癖喜欢)/.test(s);
+            const isDislikeHdr = (s) => /^🚫\s*性癖不喜欢/.test(s);
+            const isNumItem = (s) => /^\d{1,2}\s*[.、)）]\s*\S/.test(s);
+            const likeFactory = (s) => s === '🎯 性癖喜欢：' || s === '🎯 性癖喜欢：<…>'
                 || (s.startsWith('🎯 性癖喜欢') && s.includes('<…>') && s.includes('不喜欢'))
-                || (s.startsWith('🚫 性癖不喜欢') && s.includes('<…>'))
                 || s.startsWith('🎯 已开发性癖')
                 || s.includes('只写已开发/亲身体验过的');
+            const dislikeFactory = (s) => s === '🚫 性癖不喜欢：' || s === '🚫 性癖不喜欢：<…>'
+                || (s.startsWith('🚫 性癖不喜欢') && s.includes('<…>'));
             const lines = t.split('\n');
             const out = [];
             let hasLike = false;
             let hasDislike = false;
-            for (const ln of lines) {
-                const s = ln.trim();
-                if (!isKinkLine(s)) {
-                    out.push(ln);
+            for (let i = 0; i < lines.length; i++) {
+                const s = lines[i].trim();
+                if (!isLikeHdr(s) && !isDislikeHdr(s)) {
+                    out.push(lines[i]);
                     continue;
                 }
-                if (!isFactoryKink(s)) {
-                    out.push(ln); /* 完全自定义的性癖行：不触碰 */
-                    hasLike = hasLike || /^🎯/.test(s);
-                    hasDislike = hasDislike || /^🚫/.test(s);
-                    continue;
+                /* 采集本区块的编号条目行 */
+                let j = i + 1;
+                while (j < lines.length && isNumItem(lines[j].trim())) {
+                    j++;
                 }
-                /* 出厂行：第一处展开为「喜欢 + 不喜欢」两行，其余同类出厂行折叠丢弃 */
-                if (!hasLike) {
-                    out.push(SL);
-                    hasLike = true;
+                const factory = isLikeHdr(s) ? likeFactory(s) : dislikeFactory(s);
+                if (!factory) {
+                    for (let k = i; k < j; k++) {
+                        out.push(lines[k]); /* 完全自定义的性癖区块：整块保留 */
+                    }
+                    if (isLikeHdr(s)) { hasLike = true; } else { hasDislike = true; }
+                } else {
+                    if (!hasLike) {
+                        out.push(SL);
+                        hasLike = true;
+                    }
+                    if (!hasDislike) {
+                        out.push(SD);
+                        hasDislike = true;
+                    }
+                    /* 出厂区块（标题 + 既有编号行）折叠丢弃 */
                 }
-                if (!hasDislike) {
-                    out.push(SD);
-                    hasDislike = true;
-                }
+                i = j - 1;
             }
             const nt = out.join('\n');
             if (nt !== t) {
@@ -3245,14 +3324,14 @@ function migrateKinkAndNotesV2010() {
         }
         /* ② 字段说明：缺少新版指纹 → 升级为最新出厂说明（冻结的旧代出厂说明同样自愈） */
         const n = String(cfg.fieldNotes || '');
-        if (n.trim() && !n.includes('不可见≠不起作用')
-            && (cfg.notesUser !== CUSTOM_EPOCH || n.includes('怀孕可能性：随生理周期波动') || n.includes('性癖＝个人对性行为方式') || n.includes('秘密暴露癖') || n.includes('分级一律从低到高排列') || n.includes('数值＝言行的基准') || n.includes('括号内只填数字') || n.includes('分两行填写') || n.includes('状态栏不可见'))) {
+        if (n.trim() && !n.includes('编号逐条')
+            && (cfg.notesUser !== CUSTOM_EPOCH || n.includes('怀孕可能性：随生理周期波动') || n.includes('性癖＝个人对性行为方式') || n.includes('秘密暴露癖') || n.includes('分级一律从低到高排列') || n.includes('数值＝言行的基准') || n.includes('括号内只填数字') || n.includes('分两行填写') || n.includes('状态栏不可见') || n.includes('不可见≠不起作用'))) {
             cfg.fieldNotes = DEFAULT_NOTES;
             changed = true;
         }
         if (changed) {
             save();
-            console.info('[RPG-UI] v2.0.16：状态栏不可见铁律补充——数值仍暗中驱动角色言行（淫荡高则放荡、性欲高则自行排解等），角色只当是自己的欲望；玩家角色不代演');
+            console.info('[RPG-UI] v2.0.17：性癖喜欢/不喜欢改为「标题行 + 1.2.3. 编号逐条」区块（模板/解析/显示/编辑全链路；旧格式自动迁移）');
         }
     } catch (err) { /* 忽略 */ }
 }
