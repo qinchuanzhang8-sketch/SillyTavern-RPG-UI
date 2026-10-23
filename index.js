@@ -27,6 +27,7 @@ const DEFAULTS = {
     compact: false,
     langForce: true,
     visualGuard: true,
+    perfMode: true,
     quietStatus: true,
     /* v1.6：独立更新通道（端点/密钥/模型）+ 模板与显示编辑 */
     quietApiUrl: '',
@@ -2401,6 +2402,53 @@ const GUARD_COLORS = {
     border_color: 'rgba(216, 178, 92, 0.45)',
 };
 
+/* 性能优化（v2.1.0，长聊天流畅）：消息多/图片多时——屏幕外消息跳过渲染 + 图片懒加载。仅显示层优化，不改内容、不影响 AI。 */
+let perfObserver = null;
+function applyPerfBoost() {
+    try {
+        const STYLE_ID = 'rpg-ui-perf-style';
+        if (cfg.perfMode === false) {
+            $('#' + STYLE_ID).remove();
+            if (perfObserver) {
+                perfObserver.disconnect();
+                perfObserver = null;
+            }
+            return;
+        }
+        if (!$('#' + STYLE_ID).length) {
+            $('head').append('<style id="' + STYLE_ID + '">' +
+                '#chat .mes{content-visibility:auto;contain-intrinsic-size:auto 480px;}' +
+                '#chat .mes img{max-width:100%;height:auto;}' +
+                '</style>');
+        }
+        const mark = (root) => {
+            try {
+                const list = [];
+                if (root && root.nodeType === 1) {
+                    if (root.matches && root.matches('img')) { list.push(root); }
+                    if (root.querySelectorAll) { list.push(...root.querySelectorAll('img')); }
+                }
+                for (const img of list) {
+                    if (!img.getAttribute('loading')) { img.setAttribute('loading', 'lazy'); }
+                    if (!img.getAttribute('decoding')) { img.setAttribute('decoding', 'async'); }
+                }
+            } catch (err2) { /* 忽略 */ }
+        };
+        mark(document.body);
+        if (!perfObserver && typeof MutationObserver !== 'undefined') {
+            perfObserver = new MutationObserver((muts) => {
+                for (const m of muts) {
+                    for (const n of m.addedNodes) {
+                        mark(n);
+                    }
+                }
+            });
+            const chatEl = document.getElementById('chat');
+            if (chatEl) { perfObserver.observe(chatEl, { childList: true, subtree: true }); }
+        }
+    } catch (err) { /* 忽略 */ }
+}
+
 async function visualGuard() {
     if (!cfg.visualGuard) {
         return;
@@ -3915,6 +3963,9 @@ function renderSettings() {
                 <label class="checkbox_label" title="主题为「RPG 冒险者酒馆」时，若配色/背景/头像被其他标签页或扩展覆盖，自动恢复为 RPG 视觉">
                     <input type="checkbox" id="rpg_ui_guard"> RPG 视觉守护（自动修复被覆盖的配色/头像；v2.0.2 起不再接管背景）
                 </label>
+                <label class="checkbox_label" title="消息多/图片多的长聊天更流畅：屏幕外的消息跳过渲染、聊天图片懒加载——仅显示层优化，不改内容、不影响 AI 输出">
+                    <input type="checkbox" id="rpg_ui_perf"> 性能优化（长聊天流畅）
+                </label>
                 <small>信息卡直接取自 AI 回复末尾的状态块（自动隐藏、不出现在对话里）——一次回复同时完成剧情与填卡，无需第二次请求。卡片头部：拖动｜✎ 修改信息（全卡编辑，改完💾保存）｜✨ 推演补全｜🗑 删除｜↺ 重置｜－/＋ 缩放。删除消息时卡片自动回退。</small>
                 <hr style="border-color:#3f5f4a;margin:10px 0;">
                 <b>🎴 卡片模板（自由编辑：卡片显示的内容 = 发给 AI 的字段格式）</b>
@@ -3979,6 +4030,8 @@ function renderSettings() {
     bind('#rpg_ui_compact', 'compact', () => processAll());
     bind('#rpg_ui_lang', 'langForce');
     bind('#rpg_ui_guard', 'visualGuard', () => visualGuard());
+    $('#rpg_ui_perf').prop('checked', cfg.perfMode !== false);
+    bind('#rpg_ui_perf', 'perfMode', () => applyPerfBoost());
 
     /* ── v1.7：卡片模板（卡片显示 + AI 输出格式，一份模板两用） ── */
     $('#rpg_ui_tpl').val((cfg.cardTemplate && String(cfg.cardTemplate).trim()) ? cfg.cardTemplate : DEFAULT_CARD_TEMPLATE);
@@ -4068,6 +4121,7 @@ jQuery(() => {
         processAll();
         applyProtocolPrompt();
         registerHideHook();
+        applyPerfBoost();
     } catch (err) {
         console.warn('[RPG-UI] 初始化失败', err);
     }
@@ -4090,6 +4144,7 @@ eventSource.on(event_types.APP_READY, () => schedule(() => {
     processAll();
     applyProtocolPrompt();
     registerHideHook();
+    applyPerfBoost();
     visualGuard();
 }, 200));
 
@@ -4114,6 +4169,7 @@ window.rpgUI = {
     parseBlock,
     scanChat,
     updateCard,
+    applyPerfBoost,
     getCardStore,
     fmtFull,
     requestFill,
